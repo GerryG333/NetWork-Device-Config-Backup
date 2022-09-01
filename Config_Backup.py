@@ -136,10 +136,11 @@ class NetWork_Connect:
         tn.write(b'\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n')
         tn.write(b'\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n')
         runnning_config = tn.read_until(b"switch>").decode("gbk")
+        tn.close()
         hostname = re.findall(r"Name:(.*?)\n",runnning_config.replace(" ",'').replace("\r",""))[0]
         ip = device["host"]
         runnning_config = runnning_config.replace("---- More (q/Q to quit) ----","").replace("\n","@@")
-        trush = re.findall(r"Interface Statistics(.*)VLAN Configuration",runnning_config)[0]
+        trush = re.findall(r"Interface Configuration(.*)VLAN Configuration",runnning_config)[0]
         runnning_config = runnning_config.replace(trush,"").replace("@@","\n")
         Config_Data = [runnning_config,hostname,ip]
         return Config_Data
@@ -174,10 +175,6 @@ class NetWork_Connect:
         NetWork_Connect.rubytech_exit(tn)
         #Get trunk
         NetWork_Connect.rubytech_enterMode(tn,"trunk")
-        tn.write(b"show aggtr-view\n")
-        tn.write(b'         ')
-        show_aggtr = tn.read_until(b"#").decode("gbk").replace("\n","@@").replace("...(q to quit)","")
-        running_config = NetWork_Connect.rubytech_re(hostname,show_aggtr,running_config,"trunk")
         tn.write(b"show lacp-config\n")
         show_lacp = tn.read_until(b"#").decode("gbk").replace("\n","@@")
         running_config = NetWork_Connect.rubytech_re(hostname,show_lacp,running_config,"trunk")
@@ -351,8 +348,19 @@ class Config_diff:
                 continue
             if re.match(r"  end.*",a[i]):
                 del(a[i])
+                continue
             if re.match(r"         *",a[i]):
                 del(a[i])
+                continue
+            if re.match(r"\+ \n",a[i]):
+                del(a[i])
+                continue
+            if re.match(r"\- \n",a[i]):
+                del(a[i])
+                continue
+            if re.match(r" \n",a[i]):
+                del(a[i])
+                continue
         list2 = list(a.values())
         #print(list2)
         with open(output, 'w') as f:
@@ -566,8 +574,8 @@ class Config_result:
             os.mkdir(analysis_path)
         ignore_path = analysis_path + "/ignore.txt"
         IOstream.Create_Ignore_File(ignore_path,Ignore_cisco_ios)
-        Config_diff.compare_file_diffios(file1,file2,ignore_path,analysis_path+'/result.csv')
-        Config_diff.compare_files_Html(file1,file2 , analysis_path+'/result.html')
+        #Config_diff.compare_file_diffios(file1,file2,ignore_path,analysis_path+'/result.csv')
+        Config_diff.compare_files_Html(file1,file2 , analysis_path+"/"+Config_data[1]+" "+Config_data[2]+'.html')
         difference,Difference_device = Config_diff.compare_files_Node(file1,file2 , analysis_path+'/Change.txt',difference,Config_data[2],Difference_device)
         return difference,Difference_device
 
@@ -662,7 +670,7 @@ def main():
                 difference,Difference_device = Config_result.Record(Config_data,difference,Difference_device)
             elif re.match( r"zyxel",device["device_type"]):
                 Config_data = NetWork_Connect.getConfig_Zyxel(NetWork_Connect,device)
-                difference,Difference_device = Config_result.Record(Config_data,difference,Difference_device) 
+                difference,Difference_device = Config_result.Record(Config_data,difference,Difference_device)
             elif re.match( r"zte",device["device_type"]):
                 Config_data = NetWork_Connect.getConfig_MyPower(NetWork_Connect,device)
                 difference,Difference_device = Config_result.Record(Config_data,difference,Difference_device)
